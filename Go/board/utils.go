@@ -5,8 +5,28 @@ import (
 	"fmt"
 )
 
+func (data *boardData) getSnakeHeadRune() rune {
+	switch data.arenaData.snakeHeadDir {
+	case UP:
+		return '^'
+	case DOWN:
+		return 'V'
+	case LEFT:
+		return '<'
+	case RIGHT:
+		return '>'
+	default:
+		panic(fmt.Sprintf("invalid direction %v ", data.arenaData.snakeHeadDir))
+	}
+}
+
 func (data *boardData) addSnakeHead(headPos position.Position) {
-	err := data.arenaData.snake.Add(headPos)
+	currHeadPos, err := data.arenaData.snake.GetHead()
+	if err != nil {
+		panic(fmt.Sprintf("Error while getting snake during adding snake head. Error : %v ", err))
+	}
+	data.arenaData.arena[currHeadPos.RowNum][currHeadPos.ColNum] = data.arenaData.snakeRune
+	err = data.arenaData.snake.Add(headPos)
 	if err != nil {
 		panic(fmt.Sprintf("error while adding position %v to queue. Error : %v ", headPos, err))
 	}
@@ -17,7 +37,7 @@ func (data *boardData) addSnakeHead(headPos position.Position) {
 			panic(fmt.Sprintf("error while removing head position %v from field buffer during head assignment . Error : %v ", headPos, err))
 		}
 	}
-	data.arenaData.arena[headPos.RowNum][headPos.ColNum] = data.arenaData.snakeRune
+	data.arenaData.arena[headPos.RowNum][headPos.ColNum] = data.getSnakeHeadRune()
 }
 
 func (data *boardData) removeSnakeTail() {

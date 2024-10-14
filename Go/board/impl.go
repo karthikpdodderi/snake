@@ -4,6 +4,7 @@ import (
 	"board/internal/position"
 	"board/internal/queue"
 	"board/internal/store"
+	"strings"
 	"fmt"
 	"logger"
 	"sync"
@@ -181,32 +182,11 @@ func (data *boardData) Print() {
 	data.arenaMux.Lock()
 	defer data.arenaMux.Unlock()
 
-	snakeHeadPos, err := data.arenaData.snake.GetHead()
-	if err != nil {
-		panic(fmt.Sprintf("Error while getting head element. Error : %v ", err))
+	lines := []string{}
+	for _, row := range data.arenaData.arena {
+		lines = append(lines,strings.Join(strings.Split(string(row),"")," ")) 
 	}
-
-	for rowNum, row := range data.arenaData.arena {
-		for colNum, cell := range row {
-			if rowNum == snakeHeadPos.RowNum && colNum == snakeHeadPos.ColNum {
-				switch data.arenaData.snakeHeadDir {
-				case UP:
-					fmt.Printf("%v ", "^")
-				case DOWN:
-					fmt.Printf("%v ", "v")
-				case LEFT:
-					fmt.Printf("%v ", "<")
-				case RIGHT:
-					fmt.Printf("%v ", ">")
-				default:
-					panic(fmt.Sprintf("invalid snake head dir %v ", data.arenaData.snakeHeadDir))
-				}
-			} else {
-				fmt.Printf("%v ", string(cell))
-			}
-		}
-		fmt.Println()
-	}
+	fmt.Println(strings.Join(lines, "\n"))
 
 }
 
