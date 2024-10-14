@@ -1,0 +1,9 @@
+go 1.22.7
+
+use (
+	.
+	./board
+	./key_logger
+	./logger
+	./logic
+)
