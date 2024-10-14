@@ -214,9 +214,9 @@ func (data *boardData) Clear() {
 
 	data.arenaMux.Lock()
 	defer data.arenaMux.Unlock()
-
-	for i := 0; i < len(data.arenaData.arena); i++ {
+	fmt.Printf("\033[%dA\033[J", len(data.arenaData.arena)) 
+	/*for i := 0; i < len(data.arenaData.arena); i++ {
 		fmt.Print("\033[A\033[K") // Move up and clear the line
-	}
+	}*/
 
 }
