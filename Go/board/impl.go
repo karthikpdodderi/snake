@@ -4,9 +4,9 @@ import (
 	"board/internal/position"
 	"board/internal/queue"
 	"board/internal/store"
-	"strings"
 	"fmt"
 	"logger"
+	"strings"
 	"sync"
 )
 
@@ -28,9 +28,10 @@ type arenaData struct {
 	miceCaught        int
 	fileLogger        logger.Logger
 	isSnakeDirChanged bool
+	boardState        State
 }
 
-func NewBoard(numRows int, numColumns int, snakeInitialLenght int, snakeIntialDirection Direction, snakeRune rune, mouseRune rune, fieldRune rune, fileLogger logger.Logger) (Mover, Displayer, ScoreKeeper) {
+func NewBoard(numRows int, numColumns int, snakeInitialLenght int, snakeIntialDirection Direction, snakeRune rune, mouseRune rune, fieldRune rune, fileLogger logger.Logger) (Mover, Displayer, ScoreKeeper, StateKeeper) {
 
 	arena := make([][]rune, 0)
 	fieldStore := store.NewStore(fileLogger)
@@ -132,9 +133,10 @@ func NewBoard(numRows int, numColumns int, snakeInitialLenght int, snakeIntialDi
 			mouseRune:         mouseRune,
 			fieldRune:         fieldRune,
 			isSnakeDirChanged: false,
+			boardState:        CONTINUE,
 		},
 	}
-	return &boardInterface, &boardInterface, &boardInterface
+	return &boardInterface, &boardInterface, &boardInterface, &boardInterface
 }
 
 func (data *boardData) GetMiceCount() int {
@@ -153,7 +155,10 @@ func (data *boardData) Continue() State {
 		data.arenaData.isSnakeDirChanged = false
 	}()
 
-	return data.carryOn()
+	state := data.carryOn()
+	data.arenaData.boardState = state
+
+	return state
 }
 
 func (data *boardData) Turn(dir Direction) {
@@ -175,6 +180,13 @@ func (data *boardData) Turn(dir Direction) {
 			}
 		}
 	}
+
+	snakeHeadPos, err := data.arenaData.snake.GetHead()
+	if err != nil {
+		panic(fmt.Sprintf("Error while getting snake head position during turning. Error : %v ", err))
+	}
+	data.arenaData.arena[snakeHeadPos.RowNum][snakeHeadPos.ColNum] = data.getSnakeHeadRune()
+
 }
 
 func (data *boardData) Print() {
@@ -184,7 +196,7 @@ func (data *boardData) Print() {
 
 	lines := []string{}
 	for _, row := range data.arenaData.arena {
-		lines = append(lines,strings.Join(strings.Split(string(row),"")," ")) 
+		lines = append(lines, strings.Join(strings.Split(string(row), ""), " "))
 	}
 	fmt.Println(strings.Join(lines, "\n"))
 
@@ -194,9 +206,18 @@ func (data *boardData) Clear() {
 
 	data.arenaMux.Lock()
 	defer data.arenaMux.Unlock()
-	fmt.Printf("\033[%dA\033[J", len(data.arenaData.arena)) 
+
+	fmt.Printf("\033[%dA\033[J", len(data.arenaData.arena))
 	/*for i := 0; i < len(data.arenaData.arena); i++ {
 		fmt.Print("\033[A\033[K") // Move up and clear the line
 	}*/
 
+}
+
+func (data *boardData) GetState() State {
+
+	data.arenaMux.Lock()
+	defer data.arenaMux.Unlock()
+
+	return data.arenaData.boardState
 }

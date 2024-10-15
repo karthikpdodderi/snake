@@ -13,3 +13,7 @@ type Displayer interface {
 type ScoreKeeper interface {
 	GetMiceCount() int
 }
+
+type StateKeeper interface {
+	GetState() State
+}

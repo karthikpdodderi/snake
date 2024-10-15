@@ -14,6 +14,7 @@ type logicData struct {
 	printer            board.Displayer
 	mover              board.Mover
 	miceCounter        board.ScoreKeeper
+	stateKeeper        board.StateKeeper
 	keyLogger          key_logger.KeyLogger
 	upRune             rune
 	downRune           rune
@@ -24,7 +25,6 @@ type logicData struct {
 	quitChan           *chan bool
 	fileLogger         logger.Logger
 	snakeMoveDelayTime time.Duration
-	gameState          board.State
 	stateMux           sync.Mutex
 }
 
@@ -46,7 +46,7 @@ func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, nu
 
 	keyLoggerInterface := key_logger.NewKeyLogger(keyLoggerDelay, keyLoggerBuffer, fileLogger)
 
-	boardMover, boardDisplayer, boardScoreKeeper := board.NewBoard(numRows, numCols, snakeInitialLenght, snakeInitialDir, snakeRune, mouseRune, fieldRune, fileLogger)
+	boardMover, boardDisplayer, boardScoreKeeper, stateKeeper := board.NewBoard(numRows, numCols, snakeInitialLenght, snakeInitialDir, snakeRune, mouseRune, fieldRune, fileLogger)
 
 	refreshChan := make(chan bool, 1)
 	quitChan := make(chan bool, 1)
@@ -57,6 +57,7 @@ func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, nu
 		printer:            boardDisplayer,
 		mover:              boardMover,
 		miceCounter:        boardScoreKeeper,
+		stateKeeper:        stateKeeper,
 		keyLogger:          keyLoggerInterface,
 		refreshChan:        &refreshChan,
 		quitChan:           &quitChan,
@@ -67,7 +68,6 @@ func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, nu
 		rightRune:          rightRune,
 		fileLogger:         fileLogger,
 		snakeMoveDelayTime: snakeMoveDelayTime,
-		gameState:          board.CONTINUE,
 		stateMux:           sync.Mutex{},
 	}
 
@@ -84,7 +84,6 @@ func (data *logicData) Start() {
 	go func() {
 		for {
 			state := data.mover.Continue()
-			data.gameState = state
 			if state == board.LOSE || state == board.WIN {
 				*data.clearChan <- true
 				*data.quitChan <- true
