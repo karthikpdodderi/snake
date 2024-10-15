@@ -6,4 +6,6 @@ To run go snake name
     2) run using go run . 
     
     3) to exit press 'q' 
+
+    4) press 'p' to pause/play
     
