@@ -20,15 +20,17 @@ type logicData struct {
 	downRune           rune
 	leftRune           rune
 	rightRune          rune
+	pausePlayRune      rune
 	refreshChan        *chan bool
 	clearChan          *chan bool
 	quitChan           *chan bool
+	pausePlayChan      *chan bool
 	fileLogger         logger.Logger
 	snakeMoveDelayTime time.Duration
 	stateMux           sync.Mutex
 }
 
-func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, numCols int, snakeInitialLenght int, snakeInitialDir board.Direction, snakeRune rune, mouseRune rune, fieldRune rune, quitRune rune, upRune rune, downRune rune, leftRune rune, rightRune rune, snakeMoveDelayTime time.Duration, isLogRequired bool) Logic {
+func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, numCols int, snakeInitialLenght int, snakeInitialDir board.Direction, snakeRune rune, mouseRune rune, fieldRune rune, quitRune rune, upRune rune, downRune rune, leftRune rune, rightRune rune, pausePlayRune rune, snakeMoveDelayTime time.Duration, isLogRequired bool) Logic {
 
 	if snakeInitialLenght < 2 {
 		panic("Expected snake initial lenght >= 2")
@@ -51,6 +53,7 @@ func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, nu
 	refreshChan := make(chan bool, 1)
 	quitChan := make(chan bool, 1)
 	clearChan := make(chan bool, 1)
+	pausePlayChan := make(chan bool, 1)
 
 	return &logicData{
 		quitRune:           quitRune,
@@ -62,10 +65,12 @@ func NewLogic(keyLoggerDelay time.Duration, keyLoggerBuffer int, numRows int, nu
 		refreshChan:        &refreshChan,
 		quitChan:           &quitChan,
 		clearChan:          &clearChan,
+		pausePlayChan:      &pausePlayChan,
 		upRune:             upRune,
 		downRune:           downRune,
 		leftRune:           leftRune,
 		rightRune:          rightRune,
+		pausePlayRune:      pausePlayRune,
 		fileLogger:         fileLogger,
 		snakeMoveDelayTime: snakeMoveDelayTime,
 		stateMux:           sync.Mutex{},
@@ -82,38 +87,50 @@ func (data *logicData) Start() {
 	go data.display()
 
 	go func() {
+		isPaused := false
 		for {
-			state := data.mover.Continue()
-			if state == board.LOSE || state == board.WIN {
-				*data.clearChan <- true
-				*data.quitChan <- true
-				return
+			select {
+			case <-*data.pausePlayChan:
+				isPaused = !isPaused
+			default:
+				if isPaused {
+					<-*data.pausePlayChan
+					isPaused = !isPaused
+				}
+				state := data.mover.Continue()
+				if state == board.LOSE || state == board.WIN {
+					*data.clearChan <- true
+					*data.quitChan <- true
+					return
+				}
+				*data.refreshChan <- true
+				time.Sleep(data.snakeMoveDelayTime)
 			}
-			*data.refreshChan <- true
-			time.Sleep(data.snakeMoveDelayTime)
 		}
 	}()
 
-	go func() {
-		for {
+	isPaused := false
+	for {
+		select {
+		case <-*data.quitChan:
+			return
+		default:
 			keyPressed := data.keyLogger.Get()
 			switch keyPressed {
-			case data.upRune:
-				data.mover.Turn(board.UP)
-			case data.downRune:
-				data.mover.Turn(board.DOWN)
-			case data.leftRune:
-				data.mover.Turn(board.LEFT)
-			case data.rightRune:
-				data.mover.Turn(board.RIGHT)
+			case data.upRune, data.downRune, data.leftRune, data.rightRune:
+				if isPaused {
+					continue
+				}
+				data.mover.Turn(data.getDirection(keyPressed))
+				*data.refreshChan <- true
 			case data.quitRune:
 				*data.clearChan <- true
-				*data.quitChan <- true
 				return
+			case data.pausePlayRune:
+				isPaused = !isPaused
+				*data.pausePlayChan <- true
 			}
-			*data.refreshChan <- true
 		}
-	}()
+	}
 
-	<-*data.quitChan
 }
